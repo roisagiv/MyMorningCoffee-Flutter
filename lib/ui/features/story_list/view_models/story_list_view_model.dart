@@ -1,10 +1,26 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:my_morning_coffee/data/models/hn_story.dart';
 import 'package:my_morning_coffee/data/services/hn_api_service.dart';
 
 class StoryListViewModel extends ChangeNotifier {
-  final HnApiService _apiService = HnApiService();
+  final HnApiService _apiService;
+  final http.Client _client;
+
+  StoryListViewModel({
+    http.Client? client,
+    HnApiService? apiService,
+  }) : this._internal(
+          client: client ?? http.Client(),
+          apiService: apiService,
+        );
+
+  StoryListViewModel._internal({
+    required http.Client client,
+    HnApiService? apiService,
+  })  : _client = client,
+        _apiService = apiService ?? HnApiService(client: client);
 
   List<HnStory> _stories = [];
   List<HnStory> get stories => _stories;
@@ -113,6 +129,7 @@ class StoryListViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _client.close();
     super.dispose();
   }
 }

@@ -15,6 +15,9 @@ List<HnStory> _parseStories(String responseBody) {
 
 class HnApiService {
   static const String _baseUrl = 'https://hn.algolia.com';
+  final http.Client _client;
+
+  HnApiService({http.Client? client}) : _client = client ?? http.Client();
 
   /// Fetches stories from the Algolia Hacker News search_by_date API.
   Future<List<HnStory>> fetchStories({
@@ -36,7 +39,7 @@ class HnApiService {
       queryParameters: queryParams,
     );
 
-    final response = await http.get(uri);
+    final response = await _client.get(uri);
 
     if (response.statusCode == 200) {
       // Offload heavy JSON parsing to a background isolate

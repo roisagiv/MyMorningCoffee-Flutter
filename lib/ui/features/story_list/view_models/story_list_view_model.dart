@@ -8,19 +8,12 @@ class StoryListViewModel extends ChangeNotifier {
   final HnApiService _apiService;
   final Dio _dio;
 
-  StoryListViewModel({
-    Dio? dio,
-    HnApiService? apiService,
-  }) : this._internal(
-          dio: dio ?? Dio(),
-          apiService: apiService,
-        );
+  StoryListViewModel({Dio? dio, HnApiService? apiService})
+    : this._internal(dio: dio ?? Dio(), apiService: apiService);
 
-  StoryListViewModel._internal({
-    required Dio dio,
-    HnApiService? apiService,
-  })  : _dio = dio,
-        _apiService = apiService ?? HnApiService(dio: dio);
+  StoryListViewModel._internal({required Dio dio, HnApiService? apiService})
+    : _dio = dio,
+      _apiService = apiService ?? HnApiService(dio: dio);
 
   List<HnStory> _stories = [];
   List<HnStory> get stories => _stories;

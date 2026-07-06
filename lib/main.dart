@@ -20,7 +20,9 @@ class _MainAppState extends State<MainApp> {
   @override
   void initState() {
     super.initState();
-    _viewModel = StoryListViewModel(dio: Dio());
+    var dio = Dio();
+    dio.interceptors.add(LogInterceptor(logPrint: (o) => debugPrint(o.toString())));
+    _viewModel = StoryListViewModel(dio: dio);
   }
 
   @override

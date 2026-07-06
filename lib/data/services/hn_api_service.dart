@@ -5,7 +5,11 @@ class HnApiService {
   final Dio _dio;
 
   HnApiService({Dio? dio})
-      : _dio = dio ?? Dio(BaseOptions(baseUrl: 'https://hn.algolia.com'));
+      : _dio = dio ?? Dio() {
+    if (_dio.options.baseUrl.isEmpty) {
+      _dio.options.baseUrl = 'https://hn.algolia.com';
+    }
+  }
 
   /// Fetches stories from the Algolia Hacker News search_by_date API.
   Future<List<HnStory>> fetchStories({

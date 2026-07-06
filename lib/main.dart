@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 import 'ui/features/story_list/view_models/story_list_view_model.dart';
 import 'ui/features/story_list/views/story_list_view.dart';
 
@@ -20,7 +20,7 @@ class _MainAppState extends State<MainApp> {
   @override
   void initState() {
     super.initState();
-    _viewModel = StoryListViewModel(client: http.Client());
+    _viewModel = StoryListViewModel(dio: Dio());
   }
 
   @override

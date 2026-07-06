@@ -1,23 +1,11 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 import '../models/hn_story.dart';
 
-/// Top-level function for background isolate parsing of stories.
-List<HnStory> _parseStories(String responseBody) {
-  final parsedJson = jsonDecode(responseBody) as Map<String, dynamic>;
-  final hits = parsedJson['hits'] as List<dynamic>? ?? [];
-  return hits
-      .map((hit) => HnStory.fromJson(hit as Map<String, dynamic>))
-      .where((story) => story.title.isNotEmpty) // Filter out empty stories
-      .toList();
-}
-
 class HnApiService {
-  static const String _baseUrl = 'https://hn.algolia.com';
-  final http.Client _client;
+  final Dio _dio;
 
-  HnApiService({http.Client? client}) : _client = client ?? http.Client();
+  HnApiService({Dio? dio})
+      : _dio = dio ?? Dio(BaseOptions(baseUrl: 'https://hn.algolia.com'));
 
   /// Fetches stories from the Algolia Hacker News search_by_date API.
   Future<List<HnStory>> fetchStories({
@@ -35,17 +23,24 @@ class HnApiService {
       queryParams['query'] = query;
     }
 
-    final uri = Uri.parse('$_baseUrl/api/v1/search_by_date').replace(
-      queryParameters: queryParams,
-    );
+    try {
+      final response = await _dio.get(
+        '/api/v1/search_by_date',
+        queryParameters: queryParams,
+      );
 
-    final response = await _client.get(uri);
-
-    if (response.statusCode == 200) {
-      // Offload heavy JSON parsing to a background isolate
-      return compute(_parseStories, response.body);
-    } else {
-      throw Exception('Failed to fetch stories from Hacker News API (Status: ${response.statusCode})');
+      final parsedJson = response.data as Map<String, dynamic>;
+      final hits = parsedJson['hits'] as List<dynamic>? ?? [];
+      return hits
+          .map((hit) => HnStory.fromJson(hit as Map<String, dynamic>))
+          .where((story) => story.title.isNotEmpty) // Filter out empty stories
+          .toList();
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to fetch stories from Hacker News API (Status: ${e.response?.statusCode})',
+      );
+    } catch (e) {
+      throw Exception('Failed to fetch stories: $e');
     }
   }
 }

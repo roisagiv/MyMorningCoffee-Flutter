@@ -1,8 +1,27 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
+import 'package:dio/dio.dart';
 import 'package:my_morning_coffee/data/services/hn_api_service.dart';
+
+// Simple mock HttpClientAdapter implementation
+class MockHttpClientAdapter implements HttpClientAdapter {
+  final Future<ResponseBody> Function(RequestOptions options) handler;
+
+  MockHttpClientAdapter(this.handler);
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) {
+    return handler(options);
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
 
 void main() {
   group('HnApiService', () {
@@ -30,14 +49,23 @@ void main() {
         ]
       };
 
-      final client = MockClient((request) async {
-        expect(request.url.path, equals('/api/v1/search_by_date'));
-        expect(request.url.queryParameters['tags'], equals('story'));
-        expect(request.url.queryParameters['page'], equals('0'));
-        return http.Response(jsonEncode(mockResponse), 200);
+      final dio = Dio();
+      dio.httpClientAdapter = MockHttpClientAdapter((options) async {
+        expect(options.path, equals('/api/v1/search_by_date'));
+        expect(options.queryParameters['tags'], equals('story'));
+        expect(options.queryParameters['page'], equals('0'));
+
+        final responsePayload = jsonEncode(mockResponse);
+        return ResponseBody.fromBytes(
+          Uint8List.fromList(utf8.encode(responsePayload)),
+          200,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        );
       });
 
-      final service = HnApiService(client: client);
+      final service = HnApiService(dio: dio);
       final stories = await service.fetchStories();
 
       expect(stories.length, equals(1));
@@ -46,11 +74,15 @@ void main() {
     });
 
     test('fetchStories throws Exception on non-200 response', () async {
-      final client = MockClient((request) async {
-        return http.Response('Not Found', 404);
+      final dio = Dio();
+      dio.httpClientAdapter = MockHttpClientAdapter((options) async {
+        return ResponseBody.fromBytes(
+          Uint8List.fromList(utf8.encode('Not Found')),
+          404,
+        );
       });
 
-      final service = HnApiService(client: client);
+      final service = HnApiService(dio: dio);
 
       expect(
         () => service.fetchStories(),

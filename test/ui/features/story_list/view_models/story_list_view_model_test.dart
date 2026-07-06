@@ -1,8 +1,27 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
+import 'package:dio/dio.dart';
 import 'package:my_morning_coffee/ui/features/story_list/view_models/story_list_view_model.dart';
+
+// Simple mock HttpClientAdapter implementation
+class MockHttpClientAdapter implements HttpClientAdapter {
+  final Future<ResponseBody> Function(RequestOptions options) handler;
+
+  MockHttpClientAdapter(this.handler);
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) {
+    return handler(options);
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
 
 void main() {
   group('StoryListViewModel', () {
@@ -21,11 +40,18 @@ void main() {
         ]
       };
 
-      final client = MockClient((request) async {
-        return http.Response(jsonEncode(mockResponse), 200);
+      final dio = Dio();
+      dio.httpClientAdapter = MockHttpClientAdapter((options) async {
+        return ResponseBody.fromBytes(
+          Uint8List.fromList(utf8.encode(jsonEncode(mockResponse))),
+          200,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        );
       });
 
-      final viewModel = StoryListViewModel(client: client);
+      final viewModel = StoryListViewModel(dio: dio);
 
       // Verify initial states
       expect(viewModel.isLoading, isFalse);
@@ -45,11 +71,15 @@ void main() {
     });
 
     test('fetchInitialStories updates error message on failure', () async {
-      final client = MockClient((request) async {
-        return http.Response('Internal Server Error', 500);
+      final dio = Dio();
+      dio.httpClientAdapter = MockHttpClientAdapter((options) async {
+        return ResponseBody.fromBytes(
+          Uint8List.fromList(utf8.encode('Internal Server Error')),
+          500,
+        );
       });
 
-      final viewModel = StoryListViewModel(client: client);
+      final viewModel = StoryListViewModel(dio: dio);
 
       await viewModel.fetchInitialStories();
 
@@ -99,16 +129,20 @@ void main() {
         ]
       };
 
-      final client = MockClient((request) async {
+      final dio = Dio();
+      dio.httpClientAdapter = MockHttpClientAdapter((options) async {
         requestCount++;
-        if (requestCount == 1) {
-          return http.Response(jsonEncode(responsePage1), 200);
-        } else {
-          return http.Response(jsonEncode(responsePage2), 200);
-        }
+        final payload = requestCount == 1 ? responsePage1 : responsePage2;
+        return ResponseBody.fromBytes(
+          Uint8List.fromList(utf8.encode(jsonEncode(payload))),
+          200,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        );
       });
 
-      final viewModel = StoryListViewModel(client: client);
+      final viewModel = StoryListViewModel(dio: dio);
 
       await viewModel.fetchInitialStories();
       expect(viewModel.stories.length, equals(20));
